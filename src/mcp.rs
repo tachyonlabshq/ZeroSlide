@@ -4,9 +4,9 @@ use serde_json::{Value, json};
 use std::io::{self, Write};
 
 use crate::ops::{
-    add_agent_comment, add_slide, add_speaker_notes, create_presentation, extract_outline,
-    inspect_presentation, inspect_slide, resolve_agent_comment, scan_agent_comments, schema_info,
-    skill_api_contract,
+    add_agent_comment, add_slide, add_speaker_notes, append_bullets, create_presentation,
+    extract_outline, extract_text, inspect_presentation, inspect_slide, resolve_agent_comment,
+    scan_agent_comments, schema_info, skill_api_contract,
 };
 use crate::schema::{PresentationSpec, SlideSpec};
 
@@ -125,6 +125,7 @@ fn call_tool(params: Option<Value>) -> Result<Value> {
             required_string(object, "path")?,
             required_usize(object, "slide_number")?,
         )?)?,
+        "extract_text" => serde_json::to_value(extract_text(required_string(object, "path")?)?)?,
         "extract_outline" => {
             serde_json::to_value(extract_outline(required_string(object, "path")?)?)?
         }
@@ -143,6 +144,17 @@ fn call_tool(params: Option<Value>) -> Result<Value> {
             serde_json::to_value(add_slide(
                 required_string(object, "input_path")?,
                 &spec,
+                required_string(object, "output_path")?,
+            )?)?
+        }
+        "append_bullets" => {
+            let bullets: Vec<String> =
+                serde_json::from_value(required_value(object, "bullets")?.clone())
+                    .context("invalid bullets array")?;
+            serde_json::to_value(append_bullets(
+                required_string(object, "input_path")?,
+                required_usize(object, "slide_number")?,
+                &bullets,
                 required_string(object, "output_path")?,
             )?)?
         }
@@ -286,6 +298,17 @@ fn list_tools() -> Vec<ToolDescriptor> {
             }),
         },
         ToolDescriptor {
+            name: "extract_text".to_string(),
+            description: "Extract combined slide text and notes from a deck.".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string" }
+                },
+                "required": ["path"]
+            }),
+        },
+        ToolDescriptor {
             name: "create_presentation".to_string(),
             description: "Create a new PowerPoint deck from a JSON presentation spec.".to_string(),
             input_schema: json!({
@@ -309,6 +332,24 @@ fn list_tools() -> Vec<ToolDescriptor> {
                     "spec": { "type": "object" }
                 },
                 "required": ["input_path", "output_path", "spec"]
+            }),
+        },
+        ToolDescriptor {
+            name: "append_bullets".to_string(),
+            description: "Append bullet points to an existing slide and write a new output file."
+                .to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "input_path": { "type": "string" },
+                    "output_path": { "type": "string" },
+                    "slide_number": { "type": "integer", "minimum": 1 },
+                    "bullets": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                    }
+                },
+                "required": ["input_path", "output_path", "slide_number", "bullets"]
             }),
         },
         ToolDescriptor {

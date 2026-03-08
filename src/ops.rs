@@ -12,8 +12,8 @@ use ppt_rs::{NotesSlidePart, Part, SlideContent, SlideLayout, create_pptx_with_c
 
 use crate::schema::{
     AgentCommentRecord, AgentCommentScan, CommentInput, MutationSummary, OutlineSlide,
-    PresentationInspection, PresentationOutline, PresentationSpec, SchemaInfo, SkillApiContract,
-    SlideInspection, SlideSpec,
+    PresentationInspection, PresentationOutline, PresentationSpec, PresentationText, SchemaInfo,
+    SkillApiContract, SlideInspection, SlideSpec, SlideText,
 };
 
 const COMMENT_REL_TYPE: &str =
@@ -72,9 +72,11 @@ pub fn schema_info() -> SchemaInfo {
         commands: vec![
             "inspect-presentation".to_string(),
             "inspect-slide".to_string(),
+            "extract-text".to_string(),
             "extract-outline".to_string(),
             "create-presentation".to_string(),
             "add-slide".to_string(),
+            "append-bullets".to_string(),
             "replace-slide-text".to_string(),
             "add-speaker-notes".to_string(),
             "scan-agent-comments".to_string(),
@@ -87,9 +89,11 @@ pub fn schema_info() -> SchemaInfo {
         mcp_tools: vec![
             "inspect_presentation".to_string(),
             "inspect_slide".to_string(),
+            "extract_text".to_string(),
             "extract_outline".to_string(),
             "create_presentation".to_string(),
             "add_slide".to_string(),
+            "append_bullets".to_string(),
             "replace_slide_text".to_string(),
             "add_speaker_notes".to_string(),
             "scan_agent_comments".to_string(),
@@ -216,6 +220,36 @@ pub fn extract_outline(path: &str) -> Result<PresentationOutline> {
     })
 }
 
+pub fn extract_text(path: &str) -> Result<PresentationText> {
+    let inspection = inspect_presentation(path)?;
+    let mut combined = Vec::new();
+    let mut slide_text = Vec::new();
+    for slide in inspection.slides {
+        let mut text = Vec::new();
+        if let Some(title) = slide.title.clone() {
+            combined.push(title.clone());
+            text.push(title);
+        }
+        combined.extend(slide.body_text.clone());
+        text.extend(slide.body_text.clone());
+        if let Some(notes) = slide.notes.clone() {
+            combined.push(notes.clone());
+        }
+        slide_text.push(SlideText {
+            slide_number: slide.slide_number,
+            title: slide.title,
+            text,
+            notes: slide.notes,
+        });
+    }
+    Ok(PresentationText {
+        path: path.to_string(),
+        title: inspection.title,
+        slide_text,
+        combined_text: combined,
+    })
+}
+
 pub fn create_presentation(spec: &PresentationSpec, output_path: &str) -> Result<MutationSummary> {
     let slides: Vec<SlideContent> = spec.slides.iter().map(build_slide_content).collect();
     let pptx = create_pptx_with_content(&spec.title, slides)
@@ -287,6 +321,43 @@ pub fn add_slide(input_path: &str, spec: &SlideSpec, output_path: &str) -> Resul
         action: "add-slide".to_string(),
         slide_number: Some(slide_number),
         details: vec!["appended slide to deck".to_string()],
+    })
+}
+
+pub fn append_bullets(
+    input_path: &str,
+    slide_number: usize,
+    bullets: &[String],
+    output_path: &str,
+) -> Result<MutationSummary> {
+    let reader = PresentationReader::open(input_path)
+        .with_context(|| format!("failed to open '{input_path}' for inspection"))?;
+    let parsed = reader
+        .get_slide(slide_number - 1)
+        .with_context(|| format!("failed to read slide {}", slide_number))?;
+    let mut editor = PresentationEditor::open(input_path)
+        .with_context(|| format!("failed to open '{input_path}' for editing"))?;
+    let title = parsed
+        .title
+        .clone()
+        .unwrap_or_else(|| format!("Slide {}", slide_number));
+    let mut slide = SlideContent::new(&title);
+    for bullet in parsed.body_text.iter().chain(bullets.iter()) {
+        slide = slide.add_bullet(bullet);
+    }
+    editor
+        .update_slide(slide_number - 1, slide)
+        .with_context(|| format!("failed to append bullets on slide {}", slide_number))?;
+    editor
+        .save(output_path)
+        .with_context(|| format!("failed to save '{output_path}'"))?;
+
+    Ok(MutationSummary {
+        input_path: Some(input_path.to_string()),
+        output_path: output_path.to_string(),
+        action: "append-bullets".to_string(),
+        slide_number: Some(slide_number),
+        details: vec![format!("appended {} bullet(s)", bullets.len())],
     })
 }
 
@@ -1330,5 +1401,28 @@ mod tests {
         let outline = extract_outline(replaced.to_str().unwrap()).unwrap();
         assert_eq!(outline.slides.len(), 3);
         assert_eq!(outline.slides[1].title.as_deref(), Some("Updated"));
+    }
+
+    #[test]
+    fn extract_text_and_append_bullets_work() {
+        let dir = tempdir().unwrap();
+        let source = dir.path().join("deck.pptx");
+        create_presentation(&sample_spec(), source.to_str().unwrap()).unwrap();
+        let appended = dir.path().join("appended.pptx");
+        append_bullets(
+            source.to_str().unwrap(),
+            1,
+            &["delta".to_string(), "epsilon".to_string()],
+            appended.to_str().unwrap(),
+        )
+        .unwrap();
+        let extracted = extract_text(appended.to_str().unwrap()).unwrap();
+        assert!(extracted.combined_text.iter().any(|line| line == "delta"));
+        assert!(
+            extracted
+                .combined_text
+                .iter()
+                .any(|line| line.contains("speaker notes"))
+        );
     }
 }

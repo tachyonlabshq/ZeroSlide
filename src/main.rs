@@ -3,9 +3,10 @@ use std::env;
 use std::path::Path;
 use zeroslide::schema::{PresentationSpec, SlideSpec};
 use zeroslide::{
-    add_agent_comment, add_slide, add_speaker_notes, create_presentation, extract_outline,
-    inspect_presentation, inspect_slide, read_json_file, replace_slide_text, resolve_agent_comment,
-    run_mcp_stdio, scan_agent_comments, schema_info, skill_api_contract,
+    add_agent_comment, add_slide, add_speaker_notes, append_bullets, create_presentation,
+    extract_outline, extract_text, inspect_presentation, inspect_slide, read_json_file,
+    replace_slide_text, resolve_agent_comment, run_mcp_stdio, scan_agent_comments, schema_info,
+    skill_api_contract,
 };
 
 fn main() {
@@ -35,6 +36,7 @@ fn run() -> Result<()> {
             )?,
             pretty,
         ),
+        "extract-text" => print_json(&extract_text(required_arg(&args, 2)?)?, pretty),
         "extract-outline" => print_json(&extract_outline(required_arg(&args, 2)?)?, pretty),
         "create-presentation" => {
             let spec: PresentationSpec = read_json_file(required_arg(&args, 2)?)?;
@@ -47,6 +49,18 @@ fn run() -> Result<()> {
             let spec: SlideSpec = read_json_file(required_arg(&args, 3)?)?;
             print_json(
                 &add_slide(required_arg(&args, 2)?, &spec, required_arg(&args, 4)?)?,
+                pretty,
+            )
+        }
+        "append-bullets" => {
+            let bullets: Vec<String> = read_json_file(required_arg(&args, 4)?)?;
+            print_json(
+                &append_bullets(
+                    required_arg(&args, 2)?,
+                    parse_usize(required_arg(&args, 3)?, "slide_number")?,
+                    &bullets,
+                    required_arg(&args, 5)?,
+                )?,
                 pretty,
             )
         }
@@ -176,9 +190,11 @@ fn print_usage() {
         "Usage:
   zeroslide inspect-presentation <deck.pptx> [--pretty]
   zeroslide inspect-slide <deck.pptx> <slide_number> [--pretty]
+  zeroslide extract-text <deck.pptx> [--pretty]
   zeroslide extract-outline <deck.pptx> [--pretty]
   zeroslide create-presentation <spec.json> <output.pptx> [--pretty]
   zeroslide add-slide <input.pptx> <slide.json> <output.pptx> [--pretty]
+  zeroslide append-bullets <input.pptx> <slide_number> <bullets.json> <output.pptx> [--pretty]
   zeroslide replace-slide-text <input.pptx> <slide_number> <slide.json> <output.pptx> [--pretty]
   zeroslide add-speaker-notes <input.pptx> <slide_number> <notes-or-path> <output.pptx> [--pretty]
   zeroslide scan-agent-comments <deck.pptx> [--include-resolved] [--pretty]

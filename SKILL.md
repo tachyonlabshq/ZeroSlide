@@ -11,13 +11,19 @@ Use a single compiled `ZeroSlide` binary as both:
 
 - `bin/zeroslide`
 
+## Agent preference
+
+When an MCP client is available, prefer the `zeroslide` MCP tools first and use the CLI only as a fallback for debugging or environments that do not expose MCP tool calls.
+
 ## Core commands
 
 - `inspect-presentation`
 - `inspect-slide`
+- `extract-text`
 - `extract-outline`
 - `create-presentation`
 - `add-slide`
+- `append-bullets`
 - `replace-slide-text`
 - `add-speaker-notes`
 - `scan-agent-comments`
@@ -31,9 +37,11 @@ Use a single compiled `ZeroSlide` binary as both:
 
 - `inspect_presentation`
 - `inspect_slide`
+- `extract_text`
 - `extract_outline`
 - `create_presentation`
 - `add_slide`
+- `append_bullets`
 - `replace_slide_text`
 - `add_speaker_notes`
 - `scan_agent_comments`

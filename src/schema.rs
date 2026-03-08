@@ -86,6 +86,22 @@ pub struct PresentationOutline {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PresentationText {
+    pub path: String,
+    pub title: Option<String>,
+    pub slide_text: Vec<SlideText>,
+    pub combined_text: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlideText {
+    pub slide_number: usize,
+    pub title: Option<String>,
+    pub text: Vec<String>,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutlineSlide {
     pub slide_number: usize,
     pub title: Option<String>,

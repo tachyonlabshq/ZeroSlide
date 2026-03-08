@@ -15,9 +15,11 @@ This document defines the stable contract for using `ZeroSlide` through the CLI 
 
 - `inspect-presentation`
 - `inspect-slide`
+- `extract-text`
 - `extract-outline`
 - `create-presentation`
 - `add-slide`
+- `append-bullets`
 - `replace-slide-text`
 - `add-speaker-notes`
 - `scan-agent-comments`
@@ -31,9 +33,11 @@ This document defines the stable contract for using `ZeroSlide` through the CLI 
 
 - `inspect_presentation`
 - `inspect_slide`
+- `extract_text`
 - `extract_outline`
 - `create_presentation`
 - `add_slide`
+- `append_bullets`
 - `replace_slide_text`
 - `add_speaker_notes`
 - `scan_agent_comments`
