@@ -42,7 +42,7 @@
 - [x] Implement safe edit operations for existing decks:
   - `replace-slide-text`
   - `append-bullets`
-- [ ] Add remaining structural edit operations:
+- [x] Add remaining structural edit operations:
   - `remove-slide`
   - `reorder-slides`
 - [x] Prefer non-destructive writes:
@@ -178,11 +178,11 @@
 - [ ] Capture post-release follow-up items for upstream `ppt-rs` contributions or internal patches that should be reduced over time.
 
 ## Next Development Phases
-- [ ] Phase 11 - Structural Editing
+- [x] Phase 11 - Structural Editing
   - [x] implement `remove-slide`
   - [x] implement `reorder-slides`
   - [x] preserve notes/comments across reorder operations
-  - [ ] add slide-id integrity tests
+  - [x] add slide-id integrity tests
 - [ ] Phase 12 - Interoperability Hardening
   - validate decks against PowerPoint, Google Slides import, and LibreOffice Impress
   - add fallback metadata storage when classic comments are absent or unsupported

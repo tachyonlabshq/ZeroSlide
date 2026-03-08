@@ -1436,6 +1436,80 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    fn presentation_slide_refs(package: &Package) -> Vec<(u32, String)> {
+        let xml = package.get_part_string("ppt/presentation.xml").unwrap();
+        let mut reader = Reader::from_str(&xml);
+        reader.config_mut().trim_text(true);
+        let mut refs = Vec::new();
+        loop {
+            match reader.read_event().unwrap() {
+                Event::Start(ref event) | Event::Empty(ref event)
+                    if local_name(event.name().as_ref()) == "sldId" =>
+                {
+                    refs.push((
+                        raw_attr_u32(event, "id").unwrap_or_default(),
+                        raw_attr_string(event, "r:id").unwrap_or_default(),
+                    ));
+                }
+                Event::Eof => break,
+                _ => {}
+            }
+        }
+        refs
+    }
+
+    fn raw_attr_string(event: &BytesStart<'_>, name: &str) -> Option<String> {
+        event.attributes().find_map(|attr| {
+            let attr = attr.ok()?;
+            let key = std::str::from_utf8(attr.key.as_ref()).ok()?;
+            if key == name {
+                attr.unescape_value().ok().map(|value| value.into_owned())
+            } else {
+                None
+            }
+        })
+    }
+
+    fn raw_attr_u32(event: &BytesStart<'_>, name: &str) -> Option<u32> {
+        raw_attr_string(event, name).and_then(|value| value.parse::<u32>().ok())
+    }
+
+    fn presentation_slide_targets(package: &Package) -> Vec<(String, String)> {
+        parse_relationships(
+            &package
+                .get_part_string("ppt/_rels/presentation.xml.rels")
+                .unwrap(),
+        )
+        .unwrap()
+        .into_iter()
+        .filter(|rel| rel.rel_type.ends_with("/slide"))
+        .map(|rel| (rel.id, rel.target))
+        .collect()
+    }
+
+    fn slide_related_target(
+        package: &Package,
+        slide_number: usize,
+        rel_type: &str,
+    ) -> Option<String> {
+        let rels_path = format!("ppt/slides/_rels/slide{slide_number}.xml.rels");
+        let rels_xml = package.get_part_string(&rels_path)?;
+        parse_relationships(&rels_xml)
+            .ok()?
+            .into_iter()
+            .find(|rel| rel.rel_type == rel_type)
+            .map(|rel| {
+                resolve_target_path(&format!("ppt/slides/slide{slide_number}.xml"), &rel.target)
+            })
+    }
+
+    fn content_types_contains(package: &Package, part_name: &str) -> bool {
+        package
+            .get_part_string("[Content_Types].xml")
+            .unwrap()
+            .contains(&format!("PartName=\"{part_name}\""))
+    }
+
     fn sample_spec() -> PresentationSpec {
         PresentationSpec {
             title: "ZeroSlide Test".to_string(),
@@ -1695,5 +1769,128 @@ mod tests {
         assert_eq!(scan.pending.len(), 1);
         assert_eq!(scan.pending[0].slide_number, 1);
         assert!(scan.pending[0].instruction.contains("slide first"));
+    }
+
+    #[test]
+    fn remove_slide_keeps_manifest_and_metadata_links_consistent() {
+        let dir = tempdir().unwrap();
+        let source = dir.path().join("deck.pptx");
+        create_presentation(&sample_spec(), source.to_str().unwrap()).unwrap();
+
+        let with_comment = dir.path().join("commented.pptx");
+        add_agent_comment(
+            source.to_str().unwrap(),
+            2,
+            "@Agent retain metadata links",
+            with_comment.to_str().unwrap(),
+            "Reviewer",
+            "RV",
+            1,
+            1,
+        )
+        .unwrap();
+        let with_notes = dir.path().join("noted.pptx");
+        add_speaker_notes(
+            with_comment.to_str().unwrap(),
+            2,
+            "manifest notes",
+            with_notes.to_str().unwrap(),
+        )
+        .unwrap();
+
+        let removed = dir.path().join("removed.pptx");
+        remove_slide(with_notes.to_str().unwrap(), 1, removed.to_str().unwrap()).unwrap();
+
+        let package = Package::open(&removed).unwrap();
+        let slide_refs = presentation_slide_refs(&package);
+        assert_eq!(slide_refs.len(), 1);
+        assert_eq!(slide_refs[0].1, "rId3");
+
+        let slide_targets = presentation_slide_targets(&package);
+        assert_eq!(
+            slide_targets,
+            vec![("rId3".to_string(), "slides/slide1.xml".to_string())]
+        );
+
+        let note_target = slide_related_target(&package, 1, NOTES_REL_TYPE).unwrap();
+        assert!(package.has_part(&note_target));
+        assert!(content_types_contains(
+            &package,
+            &format!("/{}", note_target)
+        ));
+
+        let comment_target = slide_related_target(&package, 1, COMMENT_REL_TYPE).unwrap();
+        assert!(package.has_part(&comment_target));
+        assert!(content_types_contains(
+            &package,
+            &format!("/{}", comment_target)
+        ));
+        assert!(package.has_part("ppt/commentAuthors.xml"));
+        assert!(content_types_contains(&package, "/ppt/commentAuthors.xml"));
+    }
+
+    #[test]
+    fn reorder_slides_keeps_manifest_and_metadata_links_consistent() {
+        let dir = tempdir().unwrap();
+        let source = dir.path().join("deck.pptx");
+        create_presentation(&sample_spec(), source.to_str().unwrap()).unwrap();
+
+        let with_comment = dir.path().join("commented.pptx");
+        add_agent_comment(
+            source.to_str().unwrap(),
+            2,
+            "@Agent reorder manifest validation",
+            with_comment.to_str().unwrap(),
+            "Reviewer",
+            "RV",
+            1,
+            1,
+        )
+        .unwrap();
+        let with_notes = dir.path().join("noted.pptx");
+        add_speaker_notes(
+            with_comment.to_str().unwrap(),
+            2,
+            "reordered manifest notes",
+            with_notes.to_str().unwrap(),
+        )
+        .unwrap();
+
+        let reordered = dir.path().join("reordered.pptx");
+        reorder_slides(
+            with_notes.to_str().unwrap(),
+            &[2, 1],
+            reordered.to_str().unwrap(),
+        )
+        .unwrap();
+
+        let package = Package::open(&reordered).unwrap();
+        let slide_refs = presentation_slide_refs(&package);
+        assert_eq!(slide_refs.len(), 2);
+        assert_eq!(slide_refs[0].1, "rId3");
+        assert_eq!(slide_refs[1].1, "rId4");
+
+        let slide_targets = presentation_slide_targets(&package);
+        assert_eq!(
+            slide_targets,
+            vec![
+                ("rId3".to_string(), "slides/slide1.xml".to_string()),
+                ("rId4".to_string(), "slides/slide2.xml".to_string()),
+            ]
+        );
+
+        let note_target = slide_related_target(&package, 1, NOTES_REL_TYPE).unwrap();
+        assert!(package.has_part(&note_target));
+        assert!(content_types_contains(
+            &package,
+            &format!("/{}", note_target)
+        ));
+
+        let comment_target = slide_related_target(&package, 1, COMMENT_REL_TYPE).unwrap();
+        assert!(package.has_part(&comment_target));
+        assert!(content_types_contains(
+            &package,
+            &format!("/{}", comment_target)
+        ));
     }
 }
