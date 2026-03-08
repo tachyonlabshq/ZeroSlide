@@ -69,7 +69,7 @@
 - [ ] Support a pragmatic interoperability mode:
   - [x] use native PPTX comments when present
   - [x] fall back to speaker notes when the source file lacks comment structures and the caller explicitly allows fallback behavior
-  - [ ] add a custom metadata fallback part for environments where notes are not appropriate
+  - [x] add a custom metadata fallback part for environments where notes are not appropriate
 - [x] Define the `@Agent` parsing rules:
   - support `@Agent`, `@agent`, and configurable aliases
   - preserve the original freeform comment text
@@ -188,7 +188,7 @@
   - [x] add an `interop-report` diagnostic with best-effort local validation hooks
   - [ ] validate decks against PowerPoint, Google Slides import, and LibreOffice Impress
   - [x] add explicit speaker-notes fallback when classic comments are absent or unsupported
-  - [ ] add fallback metadata storage beyond speaker notes
+  - [x] add fallback metadata storage beyond speaker notes
   - reduce or upstream `ppt-rs` patches and dependency risk over time
 - [ ] Phase 13 - Release Integrity
   - generate checksums and SBOMs in CI

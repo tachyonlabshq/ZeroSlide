@@ -25,11 +25,12 @@ Example:
 
 ## Speaker-notes fallback
 
-If a deck should avoid classic PowerPoint comments, `ZeroSlide` can store the `@Agent` inbox in speaker notes instead:
+If a deck should avoid classic PowerPoint comments, `ZeroSlide` can store the `@Agent` inbox in speaker notes or a custom metadata part instead:
 
-1. Use `--fallback-mode notes` on `add-agent-comment`, `scan-agent-comments`, and `resolve-agent-comment`.
-2. `ZeroSlide` only uses this fallback when the source deck does not already contain classic comment structures.
-3. Visible speaker notes stay readable; the agent inbox is stored in a hidden serialized block that `ZeroSlide` preserves across note edits.
+1. Use `--fallback-mode notes` or `--fallback-mode metadata` on `add-agent-comment`, `scan-agent-comments`, and `resolve-agent-comment`.
+2. `ZeroSlide` only uses these fallbacks when the source deck does not already contain classic comment structures.
+3. The notes fallback keeps visible speaker notes readable and stores the agent inbox in a hidden serialized block.
+4. The metadata fallback stores the inbox in a dedicated package part instead of slide comments.
 
 ## Resolution behavior
 
@@ -40,4 +41,4 @@ If a deck should avoid classic PowerPoint comments, `ZeroSlide` can store the `@
 
 This keeps the original request visible while allowing later scans to treat it as handled.
 
-In speaker-notes fallback mode, the original `@Agent` entry is marked as processed in the notes inbox block instead of creating a native PowerPoint reply comment.
+In speaker-notes or metadata fallback mode, the original `@Agent` entry is marked as processed in the fallback inbox instead of creating a native PowerPoint reply comment.

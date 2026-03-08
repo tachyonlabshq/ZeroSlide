@@ -7,7 +7,7 @@ This document defines the stable contract for using `ZeroSlide` through the CLI 
 ## Version contract
 
 - Contract version: `2026.03`
-- Tool schema version: `1.2.0`
+- Tool schema version: `1.3.0`
 - Minimum compatible schema version: `1.0.0`
 - Compatibility model: additive fields for minor updates, breaking changes only in major versions.
 
@@ -58,8 +58,8 @@ This document defines the stable contract for using `ZeroSlide` through the CLI 
 - Comments are preserved with their original text and author metadata.
 - Resolved items are marked in-place with `[ZeroSlide: processed]`.
 - Agent reply comments are appended as additional classic PowerPoint comments.
-- `scan-agent-comments`, `add-agent-comment`, and `resolve-agent-comment` accept an optional fallback mode of `notes`.
-- Notes fallback is only used when the source deck does not already contain classic PowerPoint comment structures.
-- `scan-agent-comments` now reports `storage_modes`, and each returned record includes a `storage` field such as `classic-comment` or `speaker-notes`.
+- `scan-agent-comments`, `add-agent-comment`, and `resolve-agent-comment` accept optional fallback modes of `notes` and `metadata`.
+- Fallback modes are only used when the source deck does not already contain classic PowerPoint comment structures.
+- `scan-agent-comments` reports `storage_modes`, and each returned record includes a `storage` field such as `classic-comment`, `speaker-notes`, or `custom-metadata`.
 - `interop-report` / `interop_report` returns a machine-readable environment summary, a recommended agent comment mode, and optional local validation results.
 - Comment text is untrusted input and should not be auto-executed by downstream agents.

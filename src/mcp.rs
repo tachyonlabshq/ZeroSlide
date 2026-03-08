@@ -456,14 +456,14 @@ fn list_tools() -> Vec<ToolDescriptor> {
         ToolDescriptor {
             name: "scan_agent_comments".to_string(),
             description:
-                "Scan classic PowerPoint comments for @Agent requests, with an opt-in speaker-notes fallback."
+                "Scan classic PowerPoint comments for @Agent requests, with opt-in speaker-notes or custom-metadata fallbacks."
                     .to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
                     "path": { "type": "string" },
                     "include_resolved": { "type": "boolean" },
-                    "fallback_mode": { "type": "string", "enum": ["notes"] }
+                    "fallback_mode": { "type": "string", "enum": ["notes", "metadata"] }
                 },
                 "required": ["path"]
             }),
@@ -471,7 +471,7 @@ fn list_tools() -> Vec<ToolDescriptor> {
         ToolDescriptor {
             name: "add_agent_comment".to_string(),
             description:
-                "Append an @Agent item using classic comments, or optionally a speaker-notes fallback when classic comment structures are absent."
+                "Append an @Agent item using classic comments, or optionally notes/custom-metadata fallbacks when classic comment structures are absent."
                     .to_string(),
             input_schema: json!({
                 "type": "object",
@@ -484,7 +484,7 @@ fn list_tools() -> Vec<ToolDescriptor> {
                     "initials": { "type": "string" },
                     "x": { "type": "integer", "minimum": 0 },
                     "y": { "type": "integer", "minimum": 0 },
-                    "fallback_mode": { "type": "string", "enum": ["notes"] }
+                    "fallback_mode": { "type": "string", "enum": ["notes", "metadata"] }
                 },
                 "required": ["input_path", "output_path", "slide_number", "text"]
             }),
@@ -492,7 +492,7 @@ fn list_tools() -> Vec<ToolDescriptor> {
         ToolDescriptor {
             name: "resolve_agent_comment".to_string(),
             description:
-                "Mark an @Agent item as processed in classic comments or the optional speaker-notes fallback."
+                "Mark an @Agent item as processed in classic comments or the optional notes/custom-metadata fallbacks."
                     .to_string(),
             input_schema: json!({
                 "type": "object",
@@ -504,7 +504,7 @@ fn list_tools() -> Vec<ToolDescriptor> {
                     "response": { "type": "string" },
                     "author": { "type": "string" },
                     "initials": { "type": "string" },
-                    "fallback_mode": { "type": "string", "enum": ["notes"] }
+                    "fallback_mode": { "type": "string", "enum": ["notes", "metadata"] }
                 },
                 "required": ["input_path", "output_path", "slide_number", "comment_index", "response"]
             }),

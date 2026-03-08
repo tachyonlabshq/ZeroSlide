@@ -229,9 +229,9 @@ fn print_usage() {
   zeroslide reorder-slides <input.pptx> <order.json> <output.pptx> [--pretty]
   zeroslide replace-slide-text <input.pptx> <slide_number> <slide.json> <output.pptx> [--pretty]
   zeroslide add-speaker-notes <input.pptx> <slide_number> <notes-or-path> <output.pptx> [--pretty]
-  zeroslide scan-agent-comments <deck.pptx> [--include-resolved] [--fallback-mode notes] [--pretty]
-  zeroslide add-agent-comment <input.pptx> <slide_number> <text> <output.pptx> [--author NAME] [--initials ZS] [--x 0] [--y 0] [--fallback-mode notes] [--pretty]
-  zeroslide resolve-agent-comment <input.pptx> <slide_number> <comment_index> <response> <output.pptx> [--author NAME] [--initials ZS] [--fallback-mode notes] [--pretty]
+  zeroslide scan-agent-comments <deck.pptx> [--include-resolved] [--fallback-mode notes|metadata] [--pretty]
+  zeroslide add-agent-comment <input.pptx> <slide_number> <text> <output.pptx> [--author NAME] [--initials ZS] [--x 0] [--y 0] [--fallback-mode notes|metadata] [--pretty]
+  zeroslide resolve-agent-comment <input.pptx> <slide_number> <comment_index> <response> <output.pptx> [--author NAME] [--initials ZS] [--fallback-mode notes|metadata] [--pretty]
   zeroslide schema-info [--pretty]
   zeroslide skill-api-contract [--pretty]
   zeroslide mcp-stdio [--pretty]"
