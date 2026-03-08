@@ -39,6 +39,23 @@ pub struct SlideOrderSpec {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InteropReport {
+    pub path: String,
+    pub slide_count: usize,
+    pub recommended_agent_comment_mode: String,
+    pub local_checks_requested: bool,
+    pub warnings: Vec<String>,
+    pub environments: Vec<InteropEnvironmentReport>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InteropEnvironmentReport {
+    pub name: String,
+    pub status: String,
+    pub details: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchemaInfo {
     pub name: String,
     pub version: String,

@@ -185,6 +185,7 @@
   - [x] preserve notes/comments across reorder operations
   - [x] add slide-id integrity tests
 - [ ] Phase 12 - Interoperability Hardening
+  - [x] add an `interop-report` diagnostic with best-effort local validation hooks
   - [ ] validate decks against PowerPoint, Google Slides import, and LibreOffice Impress
   - [x] add explicit speaker-notes fallback when classic comments are absent or unsupported
   - [ ] add fallback metadata storage beyond speaker notes

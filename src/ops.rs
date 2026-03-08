@@ -7,15 +7,16 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use std::process::Command;
 
 use ppt_rs::opc::Package;
 use ppt_rs::oxml::{PresentationEditor, PresentationReader};
 use ppt_rs::{NotesSlidePart, Part, SlideContent, SlideLayout, create_pptx_with_content};
 
 use crate::schema::{
-    AgentCommentRecord, AgentCommentScan, CommentInput, MutationSummary, OutlineSlide,
-    PresentationInspection, PresentationOutline, PresentationSpec, PresentationText, SchemaInfo,
-    SkillApiContract, SlideInspection, SlideSpec, SlideText,
+    AgentCommentRecord, AgentCommentScan, CommentInput, InteropEnvironmentReport, InteropReport,
+    MutationSummary, OutlineSlide, PresentationInspection, PresentationOutline, PresentationSpec,
+    PresentationText, SchemaInfo, SkillApiContract, SlideInspection, SlideSpec, SlideText,
 };
 
 const COMMENT_REL_TYPE: &str =
@@ -94,6 +95,19 @@ struct SlideNotesPayload {
     agent_inbox: NotesAgentInbox,
 }
 
+#[derive(Debug, Clone, Default)]
+struct InteropFeatures {
+    has_classic_comments: bool,
+    has_notes: bool,
+    has_notes_fallback: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+struct OfficeEnvironment {
+    power_point_installed: bool,
+    libreoffice_binary: Option<String>,
+}
+
 pub fn schema_info() -> SchemaInfo {
     SchemaInfo {
         name: "ZeroSlide".to_string(),
@@ -105,6 +119,7 @@ pub fn schema_info() -> SchemaInfo {
             "inspect-slide".to_string(),
             "extract-text".to_string(),
             "extract-outline".to_string(),
+            "interop-report".to_string(),
             "create-presentation".to_string(),
             "add-slide".to_string(),
             "append-bullets".to_string(),
@@ -124,6 +139,7 @@ pub fn schema_info() -> SchemaInfo {
             "inspect_slide".to_string(),
             "extract_text".to_string(),
             "extract_outline".to_string(),
+            "interop_report".to_string(),
             "create_presentation".to_string(),
             "add_slide".to_string(),
             "append_bullets".to_string(),
@@ -144,7 +160,7 @@ pub fn schema_info() -> SchemaInfo {
 pub fn skill_api_contract() -> SkillApiContract {
     SkillApiContract {
         contract_version: "2026.03".to_string(),
-        schema_version: "1.1.0".to_string(),
+        schema_version: "1.2.0".to_string(),
         minimum_compatible_schema_version: "1.0.0".to_string(),
         stable_commands: schema_info().commands,
         stable_mcp_tools: schema_info().mcp_tools,
@@ -254,6 +270,13 @@ pub fn extract_outline(path: &str) -> Result<PresentationOutline> {
         title: inspection.title,
         slides,
     })
+}
+
+pub fn interop_report(path: &str, run_local_checks: bool) -> Result<InteropReport> {
+    let inspection = inspect_presentation(path)?;
+    let package = Package::open(path).with_context(|| format!("failed to open '{path}'"))?;
+    let features = collect_interop_features(&package)?;
+    build_interop_report(path, inspection.slide_count, &features, run_local_checks)
 }
 
 pub fn extract_text(path: &str) -> Result<PresentationText> {
@@ -1344,6 +1367,208 @@ fn has_classic_comment_structures(package: &Package) -> Result<bool> {
     Ok(false)
 }
 
+fn collect_interop_features(package: &Package) -> Result<InteropFeatures> {
+    let mut features = InteropFeatures::default();
+    for slide_path in ordered_slide_paths(package)? {
+        if !load_comments_for_slide(package, &slide_path)?.is_empty() {
+            features.has_classic_comments = true;
+        }
+        let payload = load_notes_payload_for_slide(package, &slide_path)?;
+        if payload.visible_notes.is_some() || !payload.agent_inbox.entries.is_empty() {
+            features.has_notes = true;
+        }
+        if !payload.agent_inbox.entries.is_empty() {
+            features.has_notes_fallback = true;
+        }
+    }
+    Ok(features)
+}
+
+fn build_interop_report(
+    path: &str,
+    slide_count: usize,
+    features: &InteropFeatures,
+    run_local_checks: bool,
+) -> Result<InteropReport> {
+    let environment = detect_office_environment();
+    let mut warnings = Vec::new();
+    if features.has_classic_comments {
+        warnings.push(
+            "Classic PowerPoint comments may not survive LibreOffice or Google Slides import/export unchanged.".to_string(),
+        );
+    }
+    if features.has_notes_fallback {
+        warnings.push(
+            "Speaker-notes fallback is more portable than classic comments, but imported notes should still be manually verified in target suites.".to_string(),
+        );
+    }
+
+    let recommended_agent_comment_mode = if features.has_classic_comments {
+        "classic-comments".to_string()
+    } else if features.has_notes_fallback {
+        "speaker-notes-fallback".to_string()
+    } else {
+        "classic-comments".to_string()
+    };
+
+    let environments = vec![
+        build_powerpoint_report(&environment, features),
+        build_google_slides_report(features),
+        build_libreoffice_report(path, &environment, features, run_local_checks)?,
+    ];
+
+    Ok(InteropReport {
+        path: path.to_string(),
+        slide_count,
+        recommended_agent_comment_mode,
+        local_checks_requested: run_local_checks,
+        warnings,
+        environments,
+    })
+}
+
+fn detect_office_environment() -> OfficeEnvironment {
+    OfficeEnvironment {
+        power_point_installed: Path::new("/Applications/Microsoft PowerPoint.app").exists(),
+        libreoffice_binary: find_first_command(&["soffice", "libreoffice"]),
+    }
+}
+
+fn build_powerpoint_report(
+    environment: &OfficeEnvironment,
+    features: &InteropFeatures,
+) -> InteropEnvironmentReport {
+    let mut details = vec!["PPTX is the native ZeroSlide target format.".to_string()];
+    if features.has_classic_comments {
+        details.push(
+            "Classic comment threads are expected to work best in Microsoft PowerPoint."
+                .to_string(),
+        );
+    }
+    if features.has_notes_fallback {
+        details.push(
+            "Speaker notes fallback is embedded inside notes and remains available to ZeroSlide."
+                .to_string(),
+        );
+    }
+    InteropEnvironmentReport {
+        name: "powerpoint".to_string(),
+        status: if environment.power_point_installed {
+            "manual-check-available".to_string()
+        } else {
+            "inferred-compatible".to_string()
+        },
+        details,
+    }
+}
+
+fn build_google_slides_report(features: &InteropFeatures) -> InteropEnvironmentReport {
+    let mut details = vec!["Google Slides import should preserve slide text and notes, but review metadata needs manual verification.".to_string()];
+    let status = if features.has_classic_comments {
+        details.push(
+            "Classic PowerPoint comments are a likely loss point during Google Slides import/export.".to_string(),
+        );
+        "caution"
+    } else if features.has_notes_fallback {
+        details.push(
+            "Speaker-notes fallback is the safer agent inbox mode for Google Slides import workflows.".to_string(),
+        );
+        "manual-check-required"
+    } else {
+        "manual-check-required"
+    };
+    InteropEnvironmentReport {
+        name: "google-slides-import".to_string(),
+        status: status.to_string(),
+        details,
+    }
+}
+
+fn build_libreoffice_report(
+    path: &str,
+    environment: &OfficeEnvironment,
+    features: &InteropFeatures,
+    run_local_checks: bool,
+) -> Result<InteropEnvironmentReport> {
+    let mut details = Vec::new();
+    if features.has_classic_comments {
+        details.push(
+            "Classic PowerPoint comments should be treated as high risk in LibreOffice workflows."
+                .to_string(),
+        );
+    }
+    if features.has_notes_fallback {
+        details.push(
+            "Speaker-notes fallback is the safer agent inbox mode for LibreOffice round-trips."
+                .to_string(),
+        );
+    }
+
+    let Some(binary) = environment.libreoffice_binary.as_deref() else {
+        details.push("LibreOffice is not installed on this machine.".to_string());
+        return Ok(InteropEnvironmentReport {
+            name: "libreoffice-impress".to_string(),
+            status: "unavailable".to_string(),
+            details,
+        });
+    };
+
+    if !run_local_checks {
+        details.push(format!(
+            "LibreOffice binary detected at '{binary}', but local validation was not requested."
+        ));
+        return Ok(InteropEnvironmentReport {
+            name: "libreoffice-impress".to_string(),
+            status: "manual-check-available".to_string(),
+            details,
+        });
+    }
+
+    let output_dir = std::env::temp_dir().join(format!(
+        "zeroslide-interop-{}-{}",
+        std::process::id(),
+        Utc::now().timestamp_nanos_opt().unwrap_or_default()
+    ));
+    fs::create_dir_all(&output_dir)
+        .with_context(|| format!("failed to create '{}'", output_dir.display()))?;
+    let status = Command::new(binary)
+        .arg("--headless")
+        .arg("--convert-to")
+        .arg("pdf")
+        .arg("--outdir")
+        .arg(&output_dir)
+        .arg(path)
+        .status()
+        .with_context(|| format!("failed to run LibreOffice binary '{binary}'"))?;
+    let _ = fs::remove_dir_all(&output_dir);
+
+    details.push(
+        "Attempted a headless LibreOffice PDF conversion as an import smoke check.".to_string(),
+    );
+    Ok(InteropEnvironmentReport {
+        name: "libreoffice-impress".to_string(),
+        status: if status.success() {
+            "validated-locally".to_string()
+        } else {
+            "validation-failed".to_string()
+        },
+        details,
+    })
+}
+
+fn find_first_command(commands: &[&str]) -> Option<String> {
+    let path = std::env::var_os("PATH")?;
+    for candidate in commands {
+        for directory in std::env::split_paths(&path) {
+            let full_path = directory.join(candidate);
+            if full_path.is_file() {
+                return Some(full_path.display().to_string());
+            }
+        }
+    }
+    None
+}
+
 fn ensure_comment_part_for_slide(package: &mut Package, slide_path: &str) -> Result<String> {
     if let Some(path) = comment_part_path_for_slide(package, slide_path)? {
         return Ok(path);
@@ -2028,6 +2253,76 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("speaker notes"))
         );
+    }
+
+    #[test]
+    fn interop_report_flags_classic_comments_for_cross_suite_caution() {
+        let dir = tempdir().unwrap();
+        let source = dir.path().join("deck.pptx");
+        create_presentation(&sample_spec(), source.to_str().unwrap()).unwrap();
+        let commented = dir.path().join("commented.pptx");
+        add_agent_comment(
+            source.to_str().unwrap(),
+            1,
+            "@Agent validate interop",
+            commented.to_str().unwrap(),
+            "Reviewer",
+            "RV",
+            0,
+            0,
+            None,
+        )
+        .unwrap();
+
+        let report = interop_report(commented.to_str().unwrap(), false).unwrap();
+        assert_eq!(report.recommended_agent_comment_mode, "classic-comments");
+        assert!(
+            report
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("Classic PowerPoint comments"))
+        );
+        assert!(
+            report
+                .environments
+                .iter()
+                .any(|env| env.name == "google-slides-import" && env.status == "caution")
+        );
+    }
+
+    #[test]
+    fn interop_report_detects_speaker_notes_fallback_mode() {
+        let dir = tempdir().unwrap();
+        let source = dir.path().join("deck.pptx");
+        create_presentation(&sample_spec(), source.to_str().unwrap()).unwrap();
+        let fallback = dir.path().join("fallback.pptx");
+        add_agent_comment(
+            source.to_str().unwrap(),
+            1,
+            "@Agent prefer notes fallback",
+            fallback.to_str().unwrap(),
+            "Reviewer",
+            "RV",
+            0,
+            0,
+            Some(NOTES_FALLBACK_MODE),
+        )
+        .unwrap();
+
+        let report = interop_report(fallback.to_str().unwrap(), false).unwrap();
+        assert_eq!(
+            report.recommended_agent_comment_mode,
+            "speaker-notes-fallback"
+        );
+        assert!(
+            report
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("Speaker-notes fallback"))
+        );
+        assert!(report.environments.iter().any(|env| {
+            env.name == "google-slides-import" && env.status == "manual-check-required"
+        }));
     }
 
     #[test]

@@ -21,6 +21,7 @@ When an MCP client is available, prefer the `zeroslide` MCP tools first and use 
 - `inspect-slide`
 - `extract-text`
 - `extract-outline`
+- `interop-report`
 - `create-presentation`
 - `add-slide`
 - `append-bullets`
@@ -41,6 +42,7 @@ When an MCP client is available, prefer the `zeroslide` MCP tools first and use 
 - `inspect_slide`
 - `extract_text`
 - `extract_outline`
+- `interop_report`
 - `create_presentation`
 - `add_slide`
 - `append_bullets`

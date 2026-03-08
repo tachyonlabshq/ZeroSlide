@@ -4,9 +4,9 @@ use std::path::Path;
 use zeroslide::schema::{PresentationSpec, SlideOrderSpec, SlideSpec};
 use zeroslide::{
     add_agent_comment, add_slide, add_speaker_notes, append_bullets, create_presentation,
-    extract_outline, extract_text, inspect_presentation, inspect_slide, read_json_file,
-    remove_slide, reorder_slides, replace_slide_text, resolve_agent_comment, run_mcp_stdio,
-    scan_agent_comments, schema_info, skill_api_contract,
+    extract_outline, extract_text, inspect_presentation, inspect_slide, interop_report,
+    read_json_file, remove_slide, reorder_slides, replace_slide_text, resolve_agent_comment,
+    run_mcp_stdio, scan_agent_comments, schema_info, skill_api_contract,
 };
 
 fn main() {
@@ -38,6 +38,13 @@ fn run() -> Result<()> {
         ),
         "extract-text" => print_json(&extract_text(required_arg(&args, 2)?)?, pretty),
         "extract-outline" => print_json(&extract_outline(required_arg(&args, 2)?)?, pretty),
+        "interop-report" => print_json(
+            &interop_report(
+                required_arg(&args, 2)?,
+                args.iter().any(|arg| arg == "--run-local-checks"),
+            )?,
+            pretty,
+        ),
         "create-presentation" => {
             let spec: PresentationSpec = read_json_file(required_arg(&args, 2)?)?;
             print_json(
@@ -214,6 +221,7 @@ fn print_usage() {
   zeroslide inspect-slide <deck.pptx> <slide_number> [--pretty]
   zeroslide extract-text <deck.pptx> [--pretty]
   zeroslide extract-outline <deck.pptx> [--pretty]
+  zeroslide interop-report <deck.pptx> [--run-local-checks] [--pretty]
   zeroslide create-presentation <spec.json> <output.pptx> [--pretty]
   zeroslide add-slide <input.pptx> <slide.json> <output.pptx> [--pretty]
   zeroslide append-bullets <input.pptx> <slide_number> <bullets.json> <output.pptx> [--pretty]

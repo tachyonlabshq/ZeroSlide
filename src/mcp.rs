@@ -5,8 +5,9 @@ use std::io::{self, Write};
 
 use crate::ops::{
     add_agent_comment, add_slide, add_speaker_notes, append_bullets, create_presentation,
-    extract_outline, extract_text, inspect_presentation, inspect_slide, remove_slide,
-    reorder_slides, resolve_agent_comment, scan_agent_comments, schema_info, skill_api_contract,
+    extract_outline, extract_text, inspect_presentation, inspect_slide, interop_report,
+    remove_slide, reorder_slides, resolve_agent_comment, scan_agent_comments, schema_info,
+    skill_api_contract,
 };
 use crate::schema::{PresentationSpec, SlideSpec};
 
@@ -129,6 +130,13 @@ fn call_tool(params: Option<Value>) -> Result<Value> {
         "extract_outline" => {
             serde_json::to_value(extract_outline(required_string(object, "path")?)?)?
         }
+        "interop_report" => serde_json::to_value(interop_report(
+            required_string(object, "path")?,
+            object
+                .get("run_local_checks")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+        )?)?,
         "create_presentation" => {
             let spec: PresentationSpec =
                 serde_json::from_value(required_value(object, "spec")?.clone())
@@ -322,6 +330,20 @@ fn list_tools() -> Vec<ToolDescriptor> {
                 "type": "object",
                 "properties": {
                     "path": { "type": "string" }
+                },
+                "required": ["path"]
+            }),
+        },
+        ToolDescriptor {
+            name: "interop_report".to_string(),
+            description:
+                "Summarize PowerPoint, LibreOffice, and Google Slides interoperability risks and local validation availability."
+                    .to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string" },
+                    "run_local_checks": { "type": "boolean" }
                 },
                 "required": ["path"]
             }),

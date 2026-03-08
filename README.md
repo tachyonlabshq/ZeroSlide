@@ -14,6 +14,7 @@ It uses [`ppt-rs`](https://github.com/yingkitw/ppt-rs) as the base presentation 
 
 - Inspect full decks and individual slides.
 - Extract compact outlines and combined text for agent planning.
+- Produce an interoperability report for PowerPoint, Google Slides import, and LibreOffice.
 - Create decks from JSON specs.
 - Append slides, append bullets, remove slides, reorder slides, and replace generated slide text.
 - Add or replace speaker notes.
@@ -38,6 +39,7 @@ Inspect a presentation:
 ./target/release/zeroslide inspect-slide ./deck.pptx 2 --pretty
 ./target/release/zeroslide extract-text ./deck.pptx --pretty
 ./target/release/zeroslide extract-outline ./deck.pptx --pretty
+./target/release/zeroslide interop-report ./deck.pptx --pretty
 ```
 
 Create or edit a deck:
@@ -109,6 +111,7 @@ Run as MCP:
 - `inspect_slide`
 - `extract_text`
 - `extract_outline`
+- `interop_report`
 - `create_presentation`
 - `add_slide`
 - `append_bullets`
