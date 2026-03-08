@@ -77,6 +77,7 @@ pub fn schema_info() -> SchemaInfo {
             "create-presentation".to_string(),
             "add-slide".to_string(),
             "append-bullets".to_string(),
+            "remove-slide".to_string(),
             "replace-slide-text".to_string(),
             "add-speaker-notes".to_string(),
             "scan-agent-comments".to_string(),
@@ -94,6 +95,7 @@ pub fn schema_info() -> SchemaInfo {
             "create_presentation".to_string(),
             "add_slide".to_string(),
             "append_bullets".to_string(),
+            "remove_slide".to_string(),
             "replace_slide_text".to_string(),
             "add_speaker_notes".to_string(),
             "scan_agent_comments".to_string(),
@@ -358,6 +360,44 @@ pub fn append_bullets(
         action: "append-bullets".to_string(),
         slide_number: Some(slide_number),
         details: vec![format!("appended {} bullet(s)", bullets.len())],
+    })
+}
+
+pub fn remove_slide(
+    input_path: &str,
+    slide_number: usize,
+    output_path: &str,
+) -> Result<MutationSummary> {
+    let inspection = inspect_presentation(input_path)?;
+    if slide_number == 0 || slide_number > inspection.slide_count {
+        bail!("slide {slide_number} not found");
+    }
+
+    let mut editor = PresentationEditor::open(input_path)
+        .with_context(|| format!("failed to open '{input_path}' for editing"))?;
+    editor
+        .remove_slide(slide_number - 1)
+        .with_context(|| format!("failed to remove slide {}", slide_number))?;
+    editor
+        .save(output_path)
+        .with_context(|| format!("failed to save '{output_path}'"))?;
+
+    let mut package = Package::open(output_path)
+        .with_context(|| format!("failed to reopen '{output_path}' for metadata repair"))?;
+    repair_slide_metadata(&mut package)?;
+    package
+        .save(output_path)
+        .with_context(|| format!("failed to finalize '{output_path}'"))?;
+
+    Ok(MutationSummary {
+        input_path: Some(input_path.to_string()),
+        output_path: output_path.to_string(),
+        action: "remove-slide".to_string(),
+        slide_number: Some(slide_number),
+        details: vec![format!(
+            "removed slide {} from deck with {} original slides",
+            slide_number, inspection.slide_count
+        )],
     })
 }
 
@@ -1055,6 +1095,61 @@ fn next_comment_part_number(package: &Package) -> usize {
         + 1
 }
 
+fn repair_slide_metadata(package: &mut Package) -> Result<()> {
+    let ordered_paths = ordered_slide_paths(package)?;
+    let mut note_parts = Vec::new();
+    let mut comment_parts = Vec::new();
+
+    for slide_path in &ordered_paths {
+        let slide_rels_path = rels_path_for_part(slide_path)?;
+        let Some(rels_xml) = package.get_part_string(&slide_rels_path) else {
+            continue;
+        };
+        for rel in parse_relationships(&rels_xml)? {
+            if rel.rel_type == NOTES_REL_TYPE {
+                note_parts.push(resolve_target_path(slide_path, &rel.target));
+            }
+            if rel.rel_type == COMMENT_REL_TYPE {
+                comment_parts.push(resolve_target_path(slide_path, &rel.target));
+            }
+        }
+    }
+
+    if !note_parts.is_empty() {
+        ensure_notes_master(package)?;
+        for note_part in note_parts {
+            ensure_content_type_override(
+                package,
+                &format!("/{}", note_part),
+                NOTES_SLIDE_CONTENT_TYPE,
+            )?;
+        }
+    }
+
+    if !comment_parts.is_empty() {
+        let authors = package
+            .get_part_string("ppt/commentAuthors.xml")
+            .map(|xml| parse_comment_authors(&xml))
+            .transpose()?
+            .unwrap_or_default();
+        write_comment_authors(package, &authors)?;
+        for comment_part in comment_parts {
+            ensure_content_type_override(
+                package,
+                &format!("/{}", comment_part),
+                COMMENT_CONTENT_TYPE,
+            )?;
+        }
+        ensure_content_type_override(
+            package,
+            "/ppt/commentAuthors.xml",
+            COMMENT_AUTHORS_CONTENT_TYPE,
+        )?;
+    }
+
+    Ok(())
+}
+
 fn parse_relationships(xml: &str) -> Result<Vec<Relationship>> {
     let mut reader = Reader::from_str(xml);
     reader.config_mut().trim_text(true);
@@ -1424,5 +1519,52 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("speaker notes"))
         );
+    }
+
+    #[test]
+    fn remove_slide_preserves_surviving_notes_and_comments() {
+        let dir = tempdir().unwrap();
+        let source = dir.path().join("deck.pptx");
+        create_presentation(&sample_spec(), source.to_str().unwrap()).unwrap();
+
+        let with_comment = dir.path().join("commented.pptx");
+        add_agent_comment(
+            source.to_str().unwrap(),
+            2,
+            "@Agent keep this follow-up on the surviving slide",
+            with_comment.to_str().unwrap(),
+            "Reviewer",
+            "RV",
+            5,
+            6,
+        )
+        .unwrap();
+
+        let with_notes = dir.path().join("noted.pptx");
+        add_speaker_notes(
+            with_comment.to_str().unwrap(),
+            2,
+            "surviving notes",
+            with_notes.to_str().unwrap(),
+        )
+        .unwrap();
+
+        let removed = dir.path().join("removed.pptx");
+        remove_slide(with_notes.to_str().unwrap(), 1, removed.to_str().unwrap()).unwrap();
+
+        let inspection = inspect_presentation(removed.to_str().unwrap()).unwrap();
+        assert_eq!(inspection.slide_count, 1);
+        assert_eq!(inspection.slides[0].title.as_deref(), Some("Next"));
+        assert_eq!(
+            inspection.slides[0].notes.as_deref(),
+            Some("surviving notes")
+        );
+        assert_eq!(inspection.slides[0].comment_count, 1);
+        assert_eq!(inspection.slides[0].agent_comment_count, 1);
+
+        let scan = scan_agent_comments(removed.to_str().unwrap(), false).unwrap();
+        assert_eq!(scan.pending.len(), 1);
+        assert_eq!(scan.pending[0].slide_number, 1);
+        assert!(scan.pending[0].instruction.contains("surviving slide"));
     }
 }

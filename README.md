@@ -15,7 +15,7 @@ It uses [`ppt-rs`](https://github.com/yingkitw/ppt-rs) as the base presentation 
 - Inspect full decks and individual slides.
 - Extract compact outlines and combined text for agent planning.
 - Create decks from JSON specs.
-- Append slides, append bullets, and replace generated slide text.
+- Append slides, append bullets, remove slides, and replace generated slide text.
 - Add or replace speaker notes.
 - Scan PowerPoint comments for `@Agent` follow-up instructions.
 - Add agent comments back into a deck.
@@ -45,16 +45,17 @@ Create or edit a deck:
 ./target/release/zeroslide create-presentation ./examples/presentation_spec.json ./out.pptx --pretty
 ./target/release/zeroslide add-slide ./out.pptx ./examples/slide_spec.json ./out-v2.pptx --pretty
 ./target/release/zeroslide append-bullets ./out-v2.pptx 2 ./examples/append_bullets.json ./out-v3.pptx --pretty
-./target/release/zeroslide replace-slide-text ./out-v3.pptx 2 ./examples/slide_replace.json ./out-v4.pptx --pretty
-./target/release/zeroslide add-speaker-notes ./out-v4.pptx 1 "Rehearse this opener." ./out-v5.pptx --pretty
+./target/release/zeroslide remove-slide ./out-v3.pptx 1 ./out-v4.pptx --pretty
+./target/release/zeroslide replace-slide-text ./out-v4.pptx 1 ./examples/slide_replace.json ./out-v5.pptx --pretty
+./target/release/zeroslide add-speaker-notes ./out-v5.pptx 1 "Rehearse this opener." ./out-v6.pptx --pretty
 ```
 
 Use the `@Agent` comment workflow:
 
 ```bash
-./target/release/zeroslide add-agent-comment ./out-v5.pptx 1 "@Agent tighten the headline." ./out-v6.pptx --author "Reviewer" --initials RV --pretty
-./target/release/zeroslide scan-agent-comments ./out-v6.pptx --pretty
-./target/release/zeroslide resolve-agent-comment ./out-v6.pptx 1 1 "Headline updated in the next revision." ./out-v7.pptx --pretty
+./target/release/zeroslide add-agent-comment ./out-v6.pptx 1 "@Agent tighten the headline." ./out-v7.pptx --author "Reviewer" --initials RV --pretty
+./target/release/zeroslide scan-agent-comments ./out-v7.pptx --pretty
+./target/release/zeroslide resolve-agent-comment ./out-v7.pptx 1 1 "Headline updated in the next revision." ./out-v8.pptx --pretty
 ```
 
 Run as MCP:
@@ -99,6 +100,7 @@ Run as MCP:
 - `create_presentation`
 - `add_slide`
 - `append_bullets`
+- `remove_slide`
 - `replace_slide_text`
 - `add_speaker_notes`
 - `scan_agent_comments`

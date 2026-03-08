@@ -179,9 +179,10 @@
 
 ## Next Development Phases
 - [ ] Phase 11 - Structural Editing
-  - implement `remove-slide` and `reorder-slides`
-  - preserve notes/comments across reorder operations
-  - add slide-id integrity tests
+  - [x] implement `remove-slide`
+  - [ ] implement `reorder-slides`
+  - [ ] preserve notes/comments across reorder operations
+  - [ ] add slide-id integrity tests
 - [ ] Phase 12 - Interoperability Hardening
   - validate decks against PowerPoint, Google Slides import, and LibreOffice Impress
   - add fallback metadata storage when classic comments are absent or unsupported

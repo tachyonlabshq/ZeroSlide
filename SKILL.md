@@ -24,6 +24,7 @@ When an MCP client is available, prefer the `zeroslide` MCP tools first and use 
 - `create-presentation`
 - `add-slide`
 - `append-bullets`
+- `remove-slide`
 - `replace-slide-text`
 - `add-speaker-notes`
 - `scan-agent-comments`
@@ -42,6 +43,7 @@ When an MCP client is available, prefer the `zeroslide` MCP tools first and use 
 - `create_presentation`
 - `add_slide`
 - `append_bullets`
+- `remove_slide`
 - `replace_slide_text`
 - `add_speaker_notes`
 - `scan_agent_comments`

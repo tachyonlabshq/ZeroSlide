@@ -5,8 +5,8 @@ use std::io::{self, Write};
 
 use crate::ops::{
     add_agent_comment, add_slide, add_speaker_notes, append_bullets, create_presentation,
-    extract_outline, extract_text, inspect_presentation, inspect_slide, resolve_agent_comment,
-    scan_agent_comments, schema_info, skill_api_contract,
+    extract_outline, extract_text, inspect_presentation, inspect_slide, remove_slide,
+    resolve_agent_comment, scan_agent_comments, schema_info, skill_api_contract,
 };
 use crate::schema::{PresentationSpec, SlideSpec};
 
@@ -158,6 +158,11 @@ fn call_tool(params: Option<Value>) -> Result<Value> {
                 required_string(object, "output_path")?,
             )?)?
         }
+        "remove_slide" => serde_json::to_value(remove_slide(
+            required_string(object, "input_path")?,
+            required_usize(object, "slide_number")?,
+            required_string(object, "output_path")?,
+        )?)?,
         "replace_slide_text" => {
             let spec: SlideSpec = serde_json::from_value(required_value(object, "spec")?.clone())
                 .context("invalid slide spec")?;
@@ -350,6 +355,21 @@ fn list_tools() -> Vec<ToolDescriptor> {
                     }
                 },
                 "required": ["input_path", "output_path", "slide_number", "bullets"]
+            }),
+        },
+        ToolDescriptor {
+            name: "remove_slide".to_string(),
+            description:
+                "Remove one slide and write a new output file while preserving surviving metadata."
+                    .to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "input_path": { "type": "string" },
+                    "output_path": { "type": "string" },
+                    "slide_number": { "type": "integer", "minimum": 1 }
+                },
+                "required": ["input_path", "output_path", "slide_number"]
             }),
         },
         ToolDescriptor {
