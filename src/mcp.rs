@@ -195,6 +195,7 @@ fn call_tool(params: Option<Value>) -> Result<Value> {
                 .get("include_resolved")
                 .and_then(Value::as_bool)
                 .unwrap_or(false),
+            optional_string(object, "fallback_mode"),
         )?)?,
         "add_agent_comment" => serde_json::to_value(add_agent_comment(
             required_string(object, "input_path")?,
@@ -205,6 +206,7 @@ fn call_tool(params: Option<Value>) -> Result<Value> {
             optional_string(object, "initials").unwrap_or("ZS"),
             optional_u32(object, "x").unwrap_or(0),
             optional_u32(object, "y").unwrap_or(0),
+            optional_string(object, "fallback_mode"),
         )?)?,
         "resolve_agent_comment" => serde_json::to_value(resolve_agent_comment(
             required_string(object, "input_path")?,
@@ -214,6 +216,7 @@ fn call_tool(params: Option<Value>) -> Result<Value> {
             required_string(object, "output_path")?,
             optional_string(object, "author").unwrap_or("ZeroSlide"),
             optional_string(object, "initials").unwrap_or("ZS"),
+            optional_string(object, "fallback_mode"),
         )?)?,
         "schema_info" => serde_json::to_value(schema_info())?,
         "skill_api_contract" => serde_json::to_value(skill_api_contract())?,
@@ -430,21 +433,24 @@ fn list_tools() -> Vec<ToolDescriptor> {
         },
         ToolDescriptor {
             name: "scan_agent_comments".to_string(),
-            description: "Scan classic PowerPoint comments for @Agent follow-up requests."
-                .to_string(),
+            description:
+                "Scan classic PowerPoint comments for @Agent requests, with an opt-in speaker-notes fallback."
+                    .to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
                     "path": { "type": "string" },
-                    "include_resolved": { "type": "boolean" }
+                    "include_resolved": { "type": "boolean" },
+                    "fallback_mode": { "type": "string", "enum": ["notes"] }
                 },
                 "required": ["path"]
             }),
         },
         ToolDescriptor {
             name: "add_agent_comment".to_string(),
-            description: "Append a PowerPoint comment to a slide using the classic comment format."
-                .to_string(),
+            description:
+                "Append an @Agent item using classic comments, or optionally a speaker-notes fallback when classic comment structures are absent."
+                    .to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
@@ -455,15 +461,17 @@ fn list_tools() -> Vec<ToolDescriptor> {
                     "author": { "type": "string" },
                     "initials": { "type": "string" },
                     "x": { "type": "integer", "minimum": 0 },
-                    "y": { "type": "integer", "minimum": 0 }
+                    "y": { "type": "integer", "minimum": 0 },
+                    "fallback_mode": { "type": "string", "enum": ["notes"] }
                 },
                 "required": ["input_path", "output_path", "slide_number", "text"]
             }),
         },
         ToolDescriptor {
             name: "resolve_agent_comment".to_string(),
-            description: "Mark an @Agent comment as processed and append an agent reply comment."
-                .to_string(),
+            description:
+                "Mark an @Agent item as processed in classic comments or the optional speaker-notes fallback."
+                    .to_string(),
             input_schema: json!({
                 "type": "object",
                 "properties": {
@@ -473,7 +481,8 @@ fn list_tools() -> Vec<ToolDescriptor> {
                     "comment_index": { "type": "integer", "minimum": 1 },
                     "response": { "type": "string" },
                     "author": { "type": "string" },
-                    "initials": { "type": "string" }
+                    "initials": { "type": "string" },
+                    "fallback_mode": { "type": "string", "enum": ["notes"] }
                 },
                 "required": ["input_path", "output_path", "slide_number", "comment_index", "response"]
             }),

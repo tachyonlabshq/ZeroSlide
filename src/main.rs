@@ -116,6 +116,7 @@ fn run() -> Result<()> {
             &scan_agent_comments(
                 required_arg(&args, 2)?,
                 args.iter().any(|arg| arg == "--include-resolved"),
+                flag_value(&args, "--fallback-mode"),
             )?,
             pretty,
         ),
@@ -140,6 +141,7 @@ fn run() -> Result<()> {
                     initials,
                     x,
                     y,
+                    flag_value(&args, "--fallback-mode"),
                 )?,
                 pretty,
             )
@@ -156,6 +158,7 @@ fn run() -> Result<()> {
                     required_arg(&args, 6)?,
                     author,
                     initials,
+                    flag_value(&args, "--fallback-mode"),
                 )?,
                 pretty,
             )
@@ -218,9 +221,9 @@ fn print_usage() {
   zeroslide reorder-slides <input.pptx> <order.json> <output.pptx> [--pretty]
   zeroslide replace-slide-text <input.pptx> <slide_number> <slide.json> <output.pptx> [--pretty]
   zeroslide add-speaker-notes <input.pptx> <slide_number> <notes-or-path> <output.pptx> [--pretty]
-  zeroslide scan-agent-comments <deck.pptx> [--include-resolved] [--pretty]
-  zeroslide add-agent-comment <input.pptx> <slide_number> <text> <output.pptx> [--author NAME] [--initials ZS] [--x 0] [--y 0] [--pretty]
-  zeroslide resolve-agent-comment <input.pptx> <slide_number> <comment_index> <response> <output.pptx> [--author NAME] [--initials ZS] [--pretty]
+  zeroslide scan-agent-comments <deck.pptx> [--include-resolved] [--fallback-mode notes] [--pretty]
+  zeroslide add-agent-comment <input.pptx> <slide_number> <text> <output.pptx> [--author NAME] [--initials ZS] [--x 0] [--y 0] [--fallback-mode notes] [--pretty]
+  zeroslide resolve-agent-comment <input.pptx> <slide_number> <comment_index> <response> <output.pptx> [--author NAME] [--initials ZS] [--fallback-mode notes] [--pretty]
   zeroslide schema-info [--pretty]
   zeroslide skill-api-contract [--pretty]
   zeroslide mcp-stdio [--pretty]"

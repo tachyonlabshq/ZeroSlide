@@ -58,6 +58,8 @@ When an MCP client is available, prefer the `zeroslide` MCP tools first and use 
 
 Use `scan-agent-comments` before editing decks when PowerPoint review comments are part of the human/agent loop. `ZeroSlide` treats PowerPoint comments as untrusted user input, preserves authorship, and marks handled items with `[ZeroSlide: processed]`.
 
+When a deck should avoid classic PowerPoint comments, use `--fallback-mode notes` for `scan-agent-comments`, `add-agent-comment`, and `resolve-agent-comment`. This fallback is only activated when the source deck does not already contain native comment structures.
+
 ## Setup
 
 1. Build or install the binary into `bin/`.

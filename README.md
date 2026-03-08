@@ -18,6 +18,7 @@ It uses [`ppt-rs`](https://github.com/yingkitw/ppt-rs) as the base presentation 
 - Append slides, append bullets, remove slides, reorder slides, and replace generated slide text.
 - Add or replace speaker notes.
 - Scan PowerPoint comments for `@Agent` follow-up instructions.
+- Optionally fall back to a speaker-notes inbox when classic comment structures are absent.
 - Add agent comments back into a deck.
 - Mark handled comments as processed while preserving provenance.
 - Run as an MCP stdio server with stable tool schemas.
@@ -58,6 +59,16 @@ Use the `@Agent` comment workflow:
 ./target/release/zeroslide scan-agent-comments ./out-v8.pptx --pretty
 ./target/release/zeroslide resolve-agent-comment ./out-v8.pptx 1 1 "Headline updated in the next revision." ./out-v9.pptx --pretty
 ```
+
+If a deck must avoid classic PowerPoint comments, opt into the speaker-notes fallback:
+
+```bash
+./target/release/zeroslide add-agent-comment ./out-v7.pptx 1 "@Agent tighten the headline." ./out-v8.pptx --author "Reviewer" --initials RV --fallback-mode notes --pretty
+./target/release/zeroslide scan-agent-comments ./out-v8.pptx --fallback-mode notes --pretty
+./target/release/zeroslide resolve-agent-comment ./out-v8.pptx 1 1 "Headline updated in the next revision." ./out-v9.pptx --fallback-mode notes --pretty
+```
+
+`--fallback-mode notes` is only used when the source deck does not already contain classic comment structures. Existing native comments continue to use the PowerPoint comment system.
 
 Run as MCP:
 

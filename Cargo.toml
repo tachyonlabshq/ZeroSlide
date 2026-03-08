@@ -6,6 +6,7 @@ license = "MIT"
 
 [dependencies]
 anyhow = "1.0.100"
+base64 = "0.21.7"
 chrono = { version = "0.4.42", default-features = true, features = ["clock"] }
 ppt-rs = { git = "https://github.com/yingkitw/ppt-rs", rev = "51c45bc59770d32d50cbb043e3035415f859fdd1" }
 quick-xml = "0.38.3"

@@ -127,6 +127,7 @@ pub struct AgentCommentScan {
     pub path: String,
     pub aliases: Vec<String>,
     pub total_comments: usize,
+    pub storage_modes: Vec<String>,
     pub pending: Vec<AgentCommentRecord>,
     pub resolved: Vec<AgentCommentRecord>,
 }
@@ -135,6 +136,7 @@ pub struct AgentCommentScan {
 pub struct AgentCommentRecord {
     pub slide_number: usize,
     pub comment_index: u32,
+    pub storage: String,
     pub author: Option<String>,
     pub initials: Option<String>,
     pub text: String,
