@@ -21,6 +21,7 @@ This document defines the stable contract for using `ZeroSlide` through the CLI 
 - `add-slide`
 - `append-bullets`
 - `remove-slide`
+- `reorder-slides`
 - `replace-slide-text`
 - `add-speaker-notes`
 - `scan-agent-comments`
@@ -40,6 +41,7 @@ This document defines the stable contract for using `ZeroSlide` through the CLI 
 - `add_slide`
 - `append_bullets`
 - `remove_slide`
+- `reorder_slides`
 - `replace_slide_text`
 - `add_speaker_notes`
 - `scan_agent_comments`

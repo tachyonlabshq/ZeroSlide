@@ -34,6 +34,11 @@ pub struct CommentInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlideOrderSpec {
+    pub order: Vec<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchemaInfo {
     pub name: String,
     pub version: String,

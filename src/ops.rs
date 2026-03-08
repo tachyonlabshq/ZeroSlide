@@ -78,6 +78,7 @@ pub fn schema_info() -> SchemaInfo {
             "add-slide".to_string(),
             "append-bullets".to_string(),
             "remove-slide".to_string(),
+            "reorder-slides".to_string(),
             "replace-slide-text".to_string(),
             "add-speaker-notes".to_string(),
             "scan-agent-comments".to_string(),
@@ -96,6 +97,7 @@ pub fn schema_info() -> SchemaInfo {
             "add_slide".to_string(),
             "append_bullets".to_string(),
             "remove_slide".to_string(),
+            "reorder_slides".to_string(),
             "replace_slide_text".to_string(),
             "add_speaker_notes".to_string(),
             "scan_agent_comments".to_string(),
@@ -398,6 +400,49 @@ pub fn remove_slide(
             "removed slide {} from deck with {} original slides",
             slide_number, inspection.slide_count
         )],
+    })
+}
+
+pub fn reorder_slides(
+    input_path: &str,
+    order: &[usize],
+    output_path: &str,
+) -> Result<MutationSummary> {
+    let inspection = inspect_presentation(input_path)?;
+    validate_slide_order(order, inspection.slide_count)?;
+
+    let mut package =
+        Package::open(input_path).with_context(|| format!("failed to open '{input_path}'"))?;
+    for slide_number in 1..=inspection.slide_count {
+        rename_part_pair(
+            &mut package,
+            &format!("ppt/slides/slide{slide_number}.xml"),
+            &format!("ppt/slides/_rels/slide{slide_number}.xml.rels"),
+            &format!("ppt/slides/__zeroslide_tmp_slide{slide_number}.xml"),
+            &format!("ppt/slides/_rels/__zeroslide_tmp_slide{slide_number}.xml.rels"),
+        )?;
+    }
+
+    for (new_slide_number, old_slide_number) in order.iter().enumerate() {
+        rename_part_pair(
+            &mut package,
+            &format!("ppt/slides/__zeroslide_tmp_slide{old_slide_number}.xml"),
+            &format!("ppt/slides/_rels/__zeroslide_tmp_slide{old_slide_number}.xml.rels"),
+            &format!("ppt/slides/slide{}.xml", new_slide_number + 1),
+            &format!("ppt/slides/_rels/slide{}.xml.rels", new_slide_number + 1),
+        )?;
+    }
+
+    package
+        .save(output_path)
+        .with_context(|| format!("failed to save '{output_path}'"))?;
+
+    Ok(MutationSummary {
+        input_path: Some(input_path.to_string()),
+        output_path: output_path.to_string(),
+        action: "reorder-slides".to_string(),
+        slide_number: None,
+        details: vec![format!("reordered slides to {:?}", order)],
     })
 }
 
@@ -1081,6 +1126,41 @@ fn ensure_slide_exists(package: &Package, slide_path: &str) -> Result<()> {
     }
 }
 
+fn validate_slide_order(order: &[usize], slide_count: usize) -> Result<()> {
+    if order.len() != slide_count {
+        bail!(
+            "slide order must contain exactly {} entries, received {}",
+            slide_count,
+            order.len()
+        );
+    }
+
+    let mut sorted = order.to_vec();
+    sorted.sort_unstable();
+    if sorted != (1..=slide_count).collect::<Vec<_>>() {
+        bail!("slide order must be a 1-based permutation of all slide numbers");
+    }
+    Ok(())
+}
+
+fn rename_part_pair(
+    package: &mut Package,
+    slide_path: &str,
+    rels_path: &str,
+    new_slide_path: &str,
+    new_rels_path: &str,
+) -> Result<()> {
+    let slide_bytes = package
+        .remove_part(slide_path)
+        .ok_or_else(|| anyhow!("slide part '{slide_path}' not found"))?;
+    let rels_bytes = package
+        .remove_part(rels_path)
+        .ok_or_else(|| anyhow!("slide relationships '{rels_path}' not found"))?;
+    package.add_part(new_slide_path.to_string(), slide_bytes);
+    package.add_part(new_rels_path.to_string(), rels_bytes);
+    Ok(())
+}
+
 fn next_comment_part_number(package: &Package) -> usize {
     package
         .part_paths()
@@ -1566,5 +1646,54 @@ mod tests {
         assert_eq!(scan.pending.len(), 1);
         assert_eq!(scan.pending[0].slide_number, 1);
         assert!(scan.pending[0].instruction.contains("surviving slide"));
+    }
+
+    #[test]
+    fn reorder_slides_preserves_notes_and_comments() {
+        let dir = tempdir().unwrap();
+        let source = dir.path().join("deck.pptx");
+        create_presentation(&sample_spec(), source.to_str().unwrap()).unwrap();
+
+        let with_comment = dir.path().join("commented.pptx");
+        add_agent_comment(
+            source.to_str().unwrap(),
+            2,
+            "@Agent keep this slide first after reorder",
+            with_comment.to_str().unwrap(),
+            "Reviewer",
+            "RV",
+            9,
+            12,
+        )
+        .unwrap();
+
+        let with_notes = dir.path().join("noted.pptx");
+        add_speaker_notes(
+            with_comment.to_str().unwrap(),
+            2,
+            "moved notes",
+            with_notes.to_str().unwrap(),
+        )
+        .unwrap();
+
+        let reordered = dir.path().join("reordered.pptx");
+        reorder_slides(
+            with_notes.to_str().unwrap(),
+            &[2, 1],
+            reordered.to_str().unwrap(),
+        )
+        .unwrap();
+
+        let inspection = inspect_presentation(reordered.to_str().unwrap()).unwrap();
+        assert_eq!(inspection.slide_count, 2);
+        assert_eq!(inspection.slides[0].title.as_deref(), Some("Next"));
+        assert_eq!(inspection.slides[0].notes.as_deref(), Some("moved notes"));
+        assert_eq!(inspection.slides[0].comment_count, 1);
+        assert_eq!(inspection.slides[1].title.as_deref(), Some("Intro"));
+
+        let scan = scan_agent_comments(reordered.to_str().unwrap(), false).unwrap();
+        assert_eq!(scan.pending.len(), 1);
+        assert_eq!(scan.pending[0].slide_number, 1);
+        assert!(scan.pending[0].instruction.contains("slide first"));
     }
 }

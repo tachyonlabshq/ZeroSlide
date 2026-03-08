@@ -25,6 +25,7 @@ When an MCP client is available, prefer the `zeroslide` MCP tools first and use 
 - `add-slide`
 - `append-bullets`
 - `remove-slide`
+- `reorder-slides`
 - `replace-slide-text`
 - `add-speaker-notes`
 - `scan-agent-comments`
@@ -44,6 +45,7 @@ When an MCP client is available, prefer the `zeroslide` MCP tools first and use 
 - `add_slide`
 - `append_bullets`
 - `remove_slide`
+- `reorder_slides`
 - `replace_slide_text`
 - `add_speaker_notes`
 - `scan_agent_comments`
