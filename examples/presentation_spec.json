@@ -1,0 +1,22 @@
+{
+  "title": "ZeroSlide Demo",
+  "slides": [
+    {
+      "title": "Why ZeroSlide",
+      "bullets": [
+        "Rust-based PPTX automation for agents",
+        "CLI, MCP, and skill packaging in one repo",
+        "Supports @Agent follow-up comments"
+      ],
+      "notes": "Lead with the collaboration workflow, not the implementation details."
+    },
+    {
+      "title": "Agent Review Loop",
+      "bullets": [
+        "Humans leave comments in PowerPoint",
+        "Agents scan for @Agent",
+        "ZeroSlide marks work as processed"
+      ]
+    }
+  ]
+}

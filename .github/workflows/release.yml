@@ -1,0 +1,37 @@
+name: release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            artifact: zeroslide-macos-arm64
+          - os: macos-13
+            artifact: zeroslide-macos-x64
+          - os: ubuntu-latest
+            artifact: zeroslide-linux-x64
+          - os: windows-latest
+            artifact: zeroslide-windows-x64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --release
+      - name: Copy artifact
+        shell: bash
+        run: |
+          mkdir -p release
+          cp target/release/zeroslide* "release/${{ matrix.artifact }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: release/${{ matrix.artifact }}
