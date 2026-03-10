@@ -169,6 +169,7 @@
   - scanning `@Agent` comments
   - replying in-thread with agent output
   - wiring `ZeroSlide` into OpenCode and other MCP-capable agents
+- [x] Document the install-ready platform bundle workflow, zip layout, and drop-in skill installation path.
 
 ## Phase 10 - Release And Publication
 - [x] Create the Git repository and push to `tachyonlabshq/ZeroSlide`.

@@ -141,3 +141,61 @@ For OpenCode-class agents, prefer the MCP tools when the runtime exposes them. U
 - Contract docs: [docs/SKILL_API_CONTRACT.md](/Users/michaelwong/Developer/ZeroSlide/docs/SKILL_API_CONTRACT.md)
 - Comment workflow: [docs/COMMENT_WORKFLOW.md](/Users/michaelwong/Developer/ZeroSlide/docs/COMMENT_WORKFLOW.md)
 - Bundle guide: [distribution/README.md](/Users/michaelwong/Developer/ZeroSlide/distribution/README.md)
+
+## Platform bundles
+
+GitHub Actions builds install-ready skill bundles with [.github/workflows/platform-bundles.yml](/Users/michaelwong/Developer/ZeroSlide/.github/workflows/platform-bundles.yml).
+
+The workflow triggers on:
+
+- `workflow_dispatch`
+- pushes to `main`
+- tags matching `v*`
+
+The matrix currently produces one zip per platform:
+
+- `ZeroSlide-macos-arm64-<version>.zip`
+- `ZeroSlide-macos-x64-<version>.zip`
+- `ZeroSlide-windows-x64-<version>.zip`
+- `ZeroSlide-windows-arm64-<version>.zip`
+
+Each zip contains exactly one top-level `ZeroSlide/` folder:
+
+```text
+ZeroSlide/
+  README.md
+  SKILL.md
+  mcp.json
+  bin/
+    zeroslide
+```
+
+Windows bundles use `bin/zeroslide.exe`. The bundled `mcp.json` is already wired to `./bin/zeroslide` or `./bin/zeroslide.exe` and passes `mcp-stdio`.
+
+Each platform job uploads:
+
+- the zip bundle
+- a per-platform manifest JSON
+- a per-platform SHA256 checksum file
+
+The aggregate job uploads:
+
+- an aggregate manifest JSON listing all bundles in the run
+- an aggregate `SHA256SUMS` file covering every generated zip
+
+Tag builds also publish all of those files to the GitHub Release.
+
+## Installing a bundle
+
+1. Download the zip for your platform from the workflow artifacts or GitHub Release.
+2. Extract the zip.
+3. Move the resulting `ZeroSlide/` folder directly into your agent skills directory.
+4. Keep the folder layout unchanged so `mcp.json` can launch the bundled binary with a relative path.
+
+After extraction, validate the install from inside the bundle folder:
+
+```bash
+./bin/zeroslide schema-info --pretty
+```
+
+On Windows, use `./bin/zeroslide.exe schema-info --pretty`.

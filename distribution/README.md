@@ -21,4 +21,20 @@ The script also writes:
 - a per-platform manifest JSON
 - a per-platform SHA256 checksum file
 
-For cross-platform binaries, use the GitHub Actions platform-bundle workflow. The public repo keeps source, packaging templates, workflow automation, and release artifacts in one place.
+Generate an aggregate manifest and checksum index from a directory of per-platform outputs:
+
+```bash
+python3 scripts/build_bundle_index.py \
+  --input-root distribution/artifacts \
+  --output-root distribution/aggregate-artifacts \
+  --version 0.1.0
+```
+
+For cross-platform binaries, use the GitHub Actions platform-bundle workflow in [.github/workflows/platform-bundles.yml](/Users/michaelwong/Developer/ZeroSlide/.github/workflows/platform-bundles.yml). It builds:
+
+- macOS arm64 on `macos-15`
+- macOS x64 on `macos-15-intel`
+- Windows x64 on `ubuntu-latest` via `cargo-xwin`
+- Windows arm64 on `ubuntu-latest` via `cargo-xwin`
+
+Each matrix job packages the bundle, uploads the zip plus manifest/checksum artifacts, and the aggregate job emits a run-level manifest and `SHA256SUMS` file. Tag runs also publish those assets to the GitHub Release.
