@@ -18,7 +18,36 @@ env:
   OUTPUT_ROOT: distribution/artifacts
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
+      - name: Regression and security gate
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test -q
+          cargo build --release
+          cargo audit
+          cargo deny check
+
   build-bundles:
+    needs: preflight
     strategy:
       fail-fast: false
       matrix:
@@ -63,6 +92,24 @@ jobs:
         with:
           tool: cargo-xwin
 
+      - name: Install LLVM archiver for cargo-xwin
+        if: ${{ matrix.use_xwin }}
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm clang lld
+          mkdir -p "$HOME/.local/bin"
+          llvm_lib_path="$(command -v llvm-lib || true)"
+          if [[ -z "$llvm_lib_path" ]]; then
+            llvm_lib_path="$(find /usr -type f \( -path '/usr/bin/llvm-lib' -o -path '/usr/bin/llvm-lib-*' -o -path '/usr/lib/llvm-*/bin/llvm-lib' -o -path '/usr/lib/llvm-*/bin/llvm-lib-*' \) | sort | head -n 1)"
+          fi
+          if [[ -z "$llvm_lib_path" ]]; then
+            echo "llvm-lib was not found after LLVM installation" >&2
+            exit 1
+          fi
+          ln -sf "$llvm_lib_path" "$HOME/.local/bin/llvm-lib"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Resolve bundle version
         id: version
         shell: bash
@@ -81,6 +128,9 @@ jobs:
 
       - name: Build Windows binary with cargo-xwin
         if: ${{ matrix.use_xwin }}
+        env:
+          AR_x86_64_pc_windows_msvc: llvm-lib
+          AR_aarch64_pc_windows_msvc: llvm-lib
         run: cargo xwin build --release --target ${{ matrix.target }}
 
       - name: Package platform bundle
@@ -105,7 +155,9 @@ jobs:
           if-no-files-found: error
 
   aggregate-release-assets:
-    needs: build-bundles
+    needs:
+      - preflight
+      - build-bundles
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -151,6 +203,7 @@ jobs:
   publish-release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs:
+      - preflight
       - build-bundles
       - aggregate-release-assets
     runs-on: ubuntu-latest

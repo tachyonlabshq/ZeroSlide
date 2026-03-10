@@ -117,6 +117,7 @@
 - [x] Add a reusable platform-bundle packager that emits install-ready zip bundles with a single top-level `ZeroSlide/` folder and relative `mcp.json` wiring.
 - [x] Add GitHub Actions workflows for matrix builds and artifact publishing so the checked-in public repo and tagged releases stay synchronized.
 - [x] Replace the old ad hoc release workflow with a platform bundle matrix that builds install-ready zips per target and publishes them on tags.
+- [x] Consolidate repository automation down to one final workflow that covers both the regression gate and bundle/release publishing.
 - [ ] Decide whether committed binaries live directly under `bin/` on `main` or in a release branch/artifact sync workflow; document the rule clearly before the first public release.
 
 ## Phase 7 - Testing And Validation
@@ -200,3 +201,4 @@
   - [ ] generate SBOMs in CI
   - [ ] publish signed release artifacts
   - [x] complete the multi-platform binary matrix and install-ready zip release format
+  - [x] keep one supported GitHub Actions workflow as the canonical release/build pipeline
