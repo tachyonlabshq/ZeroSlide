@@ -1,0 +1,174 @@
+name: platform-bundles
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_NAME: ZeroSlide
+  BINARY_NAME: zeroslide
+  TEMPLATE_ROOT: distribution/templates
+  OUTPUT_ROOT: distribution/artifacts
+
+jobs:
+  build-bundles:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-arm64
+            artifact_name: zeroslide-macos-arm64
+            runs_on: macos-15
+            target: aarch64-apple-darwin
+            binary_path: target/release/zeroslide
+            use_xwin: false
+          - platform: macos-x64
+            artifact_name: zeroslide-macos-x64
+            runs_on: macos-15-intel
+            target: x86_64-apple-darwin
+            binary_path: target/release/zeroslide
+            use_xwin: false
+          - platform: windows-x64
+            artifact_name: zeroslide-windows-x64
+            runs_on: ubuntu-latest
+            target: x86_64-pc-windows-msvc
+            binary_path: target/x86_64-pc-windows-msvc/release/zeroslide.exe
+            use_xwin: true
+          - platform: windows-arm64
+            artifact_name: zeroslide-windows-arm64
+            runs_on: ubuntu-latest
+            target: aarch64-pc-windows-msvc
+            binary_path: target/aarch64-pc-windows-msvc/release/zeroslide.exe
+            use_xwin: true
+    runs-on: ${{ matrix.runs_on }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cargo-xwin
+        if: ${{ matrix.use_xwin }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-xwin
+
+      - name: Resolve bundle version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME}"
+          else
+            cargo_version=$(python3 -c "import tomllib; from pathlib import Path; data = tomllib.loads(Path('Cargo.toml').read_text(encoding='utf-8')); print(data['package']['version'])")
+            version="${cargo_version}-${GITHUB_SHA::7}"
+          fi
+          echo "value=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build native macOS binary
+        if: ${{ !matrix.use_xwin }}
+        run: cargo build --release
+
+      - name: Build Windows binary with cargo-xwin
+        if: ${{ matrix.use_xwin }}
+        run: cargo xwin build --release --target ${{ matrix.target }}
+
+      - name: Package platform bundle
+        run: |
+          python3 scripts/build_platform_bundle.py \
+            --platform "${{ matrix.platform }}" \
+            --binary-path "${{ matrix.binary_path }}" \
+            --output-root "${OUTPUT_ROOT}" \
+            --project-name "${PROJECT_NAME}" \
+            --binary-name "${BINARY_NAME}" \
+            --template-root "${TEMPLATE_ROOT}" \
+            --version "${{ steps.version.outputs.value }}"
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            ${{ env.OUTPUT_ROOT }}/${{ env.PROJECT_NAME }}-${{ matrix.platform }}-*.zip
+            ${{ env.OUTPUT_ROOT }}/${{ env.PROJECT_NAME }}-${{ matrix.platform }}-*.manifest.json
+            ${{ env.OUTPUT_ROOT }}/${{ env.PROJECT_NAME }}-${{ matrix.platform }}-*.sha256
+          if-no-files-found: error
+
+  aggregate-release-assets:
+    needs: build-bundles
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: zeroslide-*
+          merge-multiple: true
+          path: distribution/collected-artifacts
+
+      - name: Resolve aggregate version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            cargo_version=$(python3 -c "import tomllib; from pathlib import Path; data = tomllib.loads(Path('Cargo.toml').read_text(encoding='utf-8')); print(data['package']['version'])")
+            version="${cargo_version}-${GITHUB_SHA::7}"
+          fi
+          echo "value=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate aggregate manifest and checksums
+        run: |
+          python3 scripts/build_bundle_index.py \
+            --input-root distribution/collected-artifacts \
+            --output-root distribution/aggregate-artifacts \
+            --version "${{ steps.version.outputs.value }}" \
+            --manifest-name "${PROJECT_NAME}-bundles-${{ steps.version.outputs.value }}.manifest.json" \
+            --checksums-name "${PROJECT_NAME}-bundles-${{ steps.version.outputs.value }}.SHA256SUMS"
+
+      - name: Upload aggregate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zeroslide-release-index
+          path: |
+            distribution/aggregate-artifacts/*.manifest.json
+            distribution/aggregate-artifacts/*.SHA256SUMS
+          if-no-files-found: error
+
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - build-bundles
+      - aggregate-release-assets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: zeroslide-*
+          merge-multiple: true
+          path: release-artifacts
+
+      - name: Publish GitHub release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-artifacts/*.zip
+            release-artifacts/*.manifest.json
+            release-artifacts/*.sha256
+            release-artifacts/*.SHA256SUMS

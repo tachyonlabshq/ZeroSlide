@@ -3,4 +3,6 @@
 /.DS_Store
 /distribution/bundles
 /distribution/artifacts
+/distribution/collected-artifacts
+/distribution/aggregate-artifacts
 *.log

@@ -116,6 +116,7 @@
   - manifest with checksums
 - [x] Add a reusable platform-bundle packager that emits install-ready zip bundles with a single top-level `ZeroSlide/` folder and relative `mcp.json` wiring.
 - [x] Add GitHub Actions workflows for matrix builds and artifact publishing so the checked-in public repo and tagged releases stay synchronized.
+- [x] Replace the old ad hoc release workflow with a platform bundle matrix that builds install-ready zips per target and publishes them on tags.
 - [ ] Decide whether committed binaries live directly under `bin/` on `main` or in a release branch/artifact sync workflow; document the rule clearly before the first public release.
 
 ## Phase 7 - Testing And Validation
@@ -153,7 +154,7 @@
   - checksums
   - SBOM generation
   - optional signing/attestation workflow
-- [ ] Ensure CI publishes per-platform manifests and aggregate checksum indexes for release bundles.
+- [x] Ensure CI publishes per-platform manifests and aggregate checksum indexes for release bundles.
 - [x] Review the `@Agent` comment flow for prompt-injection risk and document agent-side handling guidance:
   - comments are untrusted user instructions
   - tool output should preserve provenance and author identity
@@ -194,7 +195,7 @@
   - reduce or upstream `ppt-rs` patches and dependency risk over time
 - [ ] Phase 13 - Release Integrity
   - [x] generate per-platform checksums in packaging outputs
-  - [ ] generate aggregate checksums and manifests in CI
+  - [x] generate aggregate checksums and manifests in CI
   - [ ] generate SBOMs in CI
   - [ ] publish signed release artifacts
-  - [ ] complete the multi-platform binary matrix and install-ready zip release format
+  - [x] complete the multi-platform binary matrix and install-ready zip release format
