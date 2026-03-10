@@ -37,4 +37,4 @@ For cross-platform binaries, use the GitHub Actions platform-bundle workflow in 
 - Windows x64 on `ubuntu-latest` via `cargo-xwin`
 - Windows arm64 on `ubuntu-latest` via `cargo-xwin`
 
-Each matrix job packages the bundle, uploads the zip plus manifest/checksum artifacts, and the aggregate job emits a run-level manifest and `SHA256SUMS` file. Tag runs also publish those assets to the GitHub Release.
+Each matrix job packages the bundle, uploads the zip plus manifest/checksum artifacts, and the aggregate job emits a run-level manifest and `SHA256SUMS` file. Successful `main` and manual runs publish prerelease snapshot releases, while `v*` tag runs publish stable GitHub Releases.

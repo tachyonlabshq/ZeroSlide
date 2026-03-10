@@ -183,7 +183,7 @@ The aggregate job uploads:
 - an aggregate manifest JSON listing all bundles in the run
 - an aggregate `SHA256SUMS` file covering every generated zip
 
-Tag builds also publish all of those files to the GitHub Release.
+Successful `main` and `workflow_dispatch` runs publish a prerelease snapshot to GitHub Releases. Tag builds matching `v*` publish the same assets as stable versioned releases.
 
 ## Installing a bundle
 

@@ -174,6 +174,7 @@
 
 ## Phase 10 - Release And Publication
 - [x] Create the Git repository and push to `tachyonlabshq/ZeroSlide`.
+- [x] Publish prerelease snapshot releases automatically from the canonical workflow so successful bundle runs always emit a GitHub Release payload.
 - [ ] Tag the first public milestone once the following are green:
   - build
   - tests
