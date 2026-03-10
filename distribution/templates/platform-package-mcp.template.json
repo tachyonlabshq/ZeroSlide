@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "zeroslide": {
+      "type": "local",
+      "command": [
+        "{{BINARY_RELPATH}}",
+        "mcp-stdio"
+      ],
+      "enabled": true
+    }
+  }
+}

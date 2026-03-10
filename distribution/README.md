@@ -1,16 +1,24 @@
 # Distribution Assets
 
-Build a local skill bundle:
+Build a local platform bundle zip:
 
 ```bash
-python3 scripts/build_release_bundle.py --target-name zeroslide-macos-arm64
+python3 scripts/build_platform_bundle.py \
+  --platform macos-arm64 \
+  --binary-path target/release/zeroslide \
+  --output-root distribution/artifacts
 ```
 
-The bundle contains:
+Each bundle zip contains exactly one top-level `ZeroSlide/` folder with:
 
-- a copied binary under `distribution/bundles/<target>/bin/`
+- `README.md`
 - `SKILL.md`
 - `mcp.json`
-- a release manifest with checksums
+- `bin/zeroslide` or `bin/zeroslide.exe`
 
-For cross-platform binaries, use the GitHub Actions release workflow. The public repo keeps source, packaging metadata, and release assets in one place.
+The script also writes:
+
+- a per-platform manifest JSON
+- a per-platform SHA256 checksum file
+
+For cross-platform binaries, use the GitHub Actions platform-bundle workflow. The public repo keeps source, packaging templates, workflow automation, and release artifacts in one place.
